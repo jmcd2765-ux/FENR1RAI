@@ -1,0 +1,23 @@
+#Log to track uptime and changes to the codebase. This file is not meant to be edited manually, but rather serves as a record of recent modifications for debugging and development purposes.
+#Log will include basic Network SYSLOG messages, as well as custom entries for code changes and updates.
+@ 2026-04-28 12:00:00 - FENR1R Bot started, version 1.0.0
+@ 2026-04-28 12:05:00 - Loaded personality engine with base prompt and knowledge summary
+@ 2026-04-28 12:10:00 - Initialized Twitch bot and connected to Twitch chat
+@ 2026-04-28 12:15:00 - Received first message in chat, processing response
+@ 2026-04-28 12:20:00 - Updated voice engine to include mood engine context in TTS responses
+@ 2026-04-28 12:25:00 - Added error handling for missing audio dependencies in voice engine
+@ 2026-04-28 12:30:00 - Improved logging for STT loading and transcription errors in voice engine
+@ 2026-04-28 12:35:00 - Refactored personality engine prompt construction to include mood instructions and context
+@ 2026-04-28 12:40:00 - Observing chat messages in mood engine for dynamic mood adjustments
+@ 2026-04-28 12:45:00 - FENR1R Bot is running smoothly with new features and improvements!
+@ 2026-04-28 21:25:00 - FENR1R Bot is being tested for first time in a secluded environment, monitoring for any issues or crashes.
+@ 2026-04-28 21:47:30 - FENR1R Bot experience first crash due to missing pyaudio dependency, added error handling to voice engine to prevent future crashes and log the issue.
+@ 2026-05-13 22:07:10 - [__main__:WARN] - No .env file found. Copy .env.example to .env and configure it.
+@ 2026-05-13 22:07:18 - [__main__:INFO] - FENR1R Bot starting up...
+@ 2026-05-13 22:07:18 - [__main__:ERR] - Configuration error: TWITCH_ACCESS_TOKEN not set. Please set it in .env file or as environment variable.
+@ 2026-05-13 22:07:18 - [__main__:ERR] - Make sure .env file exists with TWITCH_ACCESS_TOKEN and TWITCH_CHANNEL set.
+@ 2026-05-13 22:07:18 - [__main__:ERR] - Copy .env.example to .env and fill in your values.
+@ 2026-05-13 22:07:56 - [__main__:WARN] - python-dotenv not installed. Environment variables must be set manually.
+@ 2026-05-13 22:07:56 - [__main__:WARN] - Run: pip install python-dotenv
+@ 2026-05-13 22:09:19 - [__main__:WARN] - python-dotenv not installed. Environment variables must be set manually.
+@ 2026-05-13 22:09:19 - [__main__:WARN] - Run: pip install python-dotenv

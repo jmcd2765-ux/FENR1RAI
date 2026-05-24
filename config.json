@@ -1,0 +1,11 @@
+{
+    "memory_age": 600,
+    "cooldown": 10,
+    "voice_rate": 180,
+    "voice_volume": 0.9,
+    "voice_pitch": 0,
+    "whisper_model": "openai/whisper-small",
+    "ollama_timeout": 20,
+    "audio_duration": 3,
+    "vts_port": 9000
+}
