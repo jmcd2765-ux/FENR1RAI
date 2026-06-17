@@ -1,7 +1,6 @@
 import importlib
 import random
 import time
-import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 import logging
@@ -141,13 +140,6 @@ class MoodEngine:
         else:
             self.conflicting_signals = max(0, self.conflicting_signals - 1)
         
-        # Record trigger regardless of inertia (for history tracking)
-        self.mood_triggers_history.append((mood_name, time.time()))
-        
-        # Keep trigger history limited
-        if len(self.mood_triggers_history) > 50:
-            self.mood_triggers_history = self.mood_triggers_history[-50:]
-        
         # Apply emotional inertia - don't switch moods too quickly
         if self.conflicting_signals < self.mood_inertia and self.current_mood.name != mood_name:
             self.logger.debug(
@@ -175,6 +167,11 @@ class MoodEngine:
         self.emotional_momentum = 0.7 * self.emotional_momentum + 0.3 * new_momentum
         
         self.history.append(self.current_mood)
+        self.mood_triggers_history.append((mood_name, time.time()))
+        
+        # Keep trigger history limited
+        if len(self.mood_triggers_history) > 50:
+            self.mood_triggers_history = self.mood_triggers_history[-50:]
         
         if old_mood != self.current_mood.name:
             self.logger.info(
@@ -315,3 +312,5 @@ class MoodEngine:
             f"  Recent triggers: {len(recent_triggers)} in last ~{int((time.time() - recent_triggers[0][1]))} seconds"
         )
         return report
+
+import os

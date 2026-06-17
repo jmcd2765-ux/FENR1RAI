@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from knowledge_manager import KnowledgeManager
 from learning import LearningEngine
 from Mood import MoodEngine
+from speech_pattern_analyzer import SpeechPatternAnalyzer
 
 class PersonalityEngine:
     def __init__(self, config=None, knowledge_manager=None, learning_engine=None, mood_engine=None):
@@ -17,6 +18,7 @@ class PersonalityEngine:
         self.knowledge_manager = knowledge_manager or KnowledgeManager()
         self.learning_engine = learning_engine or LearningEngine()
         self.mood_engine = mood_engine or MoodEngine()
+        self.speech_analyzer = SpeechPatternAnalyzer()
 
     def _system_prompt(self) -> str:
         base_prompt = (
@@ -30,13 +32,18 @@ class PersonalityEngine:
         knowledge = self.knowledge_manager.get_knowledge_summary()
         mood_instruction = self.mood_engine.get_mood_instruction() if self.mood_engine else ""
         mood_context = self.mood_engine.get_mood_context() if self.mood_engine else ""
+        alpha_pattern = self.speech_analyzer.get_alpha_instruction()
+        
         prompt_parts = [base_prompt]
         if mood_instruction:
             prompt_parts.append(mood_instruction)
         if mood_context:
             prompt_parts.append(mood_context)
+        if alpha_pattern:
+            prompt_parts.append(alpha_pattern)
         if knowledge:
             prompt_parts.append(f"Use the following knowledge to inform your responses:\n{knowledge}")
+        
         return "\n\n".join(prompt_parts)
 
     def _build_messages(self, user_message: str, memory_context: List[str], user_name: Optional[str] = None) -> List[Dict[str, str]]:
@@ -44,11 +51,17 @@ class PersonalityEngine:
         user_context = self.learning_engine.get_user_context(user_name) if user_name else ""
         global_context = self.learning_engine.get_global_context()
         relevant_memories = self.knowledge_manager.get_relevant_long_term_memories(user_message)
+        
+        # Add speech pattern context
+        pattern_injection = self.speech_analyzer.get_pattern_injection(user_name) if user_name else ""
+        
         sections = []
         if global_context:
             sections.append(global_context)
         if user_context:
             sections.append(user_context)
+        if pattern_injection:
+            sections.append(pattern_injection)
         if relevant_memories:
             sections.append(f"Relevant long-term memories:\n{relevant_memories}")
         if context_block:
@@ -63,6 +76,11 @@ class PersonalityEngine:
 
     async def reply_to_chat(self, user_message: str, memory_context: List[str], user_name: Optional[str] = None) -> str:
         try:
+            # Analyze the user's speech patterns
+            if user_name:
+                is_alpha = user_name.lower() == os.getenv("TWITCH_CHANNEL", "").lower()
+                self.speech_analyzer.analyze_message(user_message, user_name, is_alpha=is_alpha)
+            
             messages = self._build_messages(user_message, memory_context, user_name)
             self.logger.debug(f"Built prompt for {user_name}: {len(messages)} messages")
             return await asyncio.to_thread(self._call_ollama, messages)
@@ -71,14 +89,24 @@ class PersonalityEngine:
             return "Oops, glitch detected! *reboots*"
 
     def _call_ollama(self, messages: List[Dict[str, str]]) -> str:
+        # Adjust temperature based on mood for better creative control
+        mood = self.mood_engine.current_mood.name if self.mood_engine else "neutral"
+        mood_temperature_map = {
+            "happy": 0.85,      # More creative and playful
+            "sad": 0.7,         # More thoughtful
+            "angry": 0.75,      # Sharp and pointed
+            "neutral": 0.8      # Balanced
+        }
+        temperature = mood_temperature_map.get(mood, 0.8)
+        
         payload = {
             "model": self.model,
             "messages": messages,
-            "temperature": 0.8,
+            "temperature": temperature,
             "max_tokens": 220,
         }
         try:
-            self.logger.debug(f"Calling Ollama at {self.ollama_url} with model {self.model}")
+            self.logger.debug(f"Calling Ollama at {self.ollama_url} with model {self.model} (temp: {temperature})")
             response = requests.post(
                 f"{self.ollama_url}/v1/chat/completions",
                 json=payload,

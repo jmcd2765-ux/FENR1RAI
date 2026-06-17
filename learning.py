@@ -1,5 +1,5 @@
 import re
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import Dict, List, Set, Optional
 
 GAME_TERMS = [
@@ -15,16 +15,28 @@ class LearningEngine:
             "favorite_games": set(),
             "loyalty_score": 0,
             "tags": set(),
-            "recent_topics": []
+            "recent_topics": [],
+            "communication_style": Counter(),
+            "sentiment_trend": 0.0,  # -1.0 to 1.0
+            "interaction_frequency": 0,
+            "preferred_response_style": "balanced"
         })
         self.global_topics = defaultdict(int)
         self.knowledge_manager = knowledge_manager
+        self.sentiment_keywords = {
+            "positive": ["love", "amazing", "awesome", "great", "good", "nice", "cool", "best"],
+            "negative": ["hate", "bad", "terrible", "awful", "worst", "sucks", "trash"],
+            "neutral": ["okay", "fine", "alright", "normal", "regular", "standard"]
+        }
 
     def observe_message(self, username: str, content: str, tags: Optional[Dict] = None):
         profile = self.user_profiles[username]
         profile["messages"].append(content)
+        profile["interaction_frequency"] += 1
+        
         import logging
         logger = logging.getLogger(__name__)
+        
         if tags:
             if tags.get("subscriber"):
                 profile["loyalty_score"] += 2
@@ -37,15 +49,23 @@ class LearningEngine:
             if tags.get("vip"):
                 profile["tags"].add("vip")
                 logger.info(f"VIP {username} participated in chat")
+        
         found_games = self._extract_games(content)
         profile["favorite_games"].update(found_games)
         for game in found_games:
             self.global_topics[game] += 1
             logger.debug(f"Game mentioned: {game}")
+        
         topics = self._extract_topics(content)
         profile["recent_topics"].extend(topics)
         for topic in topics:
             self.global_topics[topic] += 1
+
+        # Track communication style patterns
+        self._analyze_communication_style(content, profile)
+        
+        # Track sentiment trend
+        self._update_sentiment_trend(content, profile)
 
         # Auto-save important knowledge
         self._auto_save_important_knowledge(username, content, tags)
@@ -83,6 +103,58 @@ class LearningEngine:
         topics = [word for word in words if len(word) > 4]
         return topics[-5:]
 
+    def _analyze_communication_style(self, content: str, profile: Dict):
+        """Analyze and track user's communication style patterns."""
+        # Track message length
+        length_category = "short" if len(content) < 20 else "medium" if len(content) < 100 else "long"
+        profile["communication_style"][f"length_{length_category}"] += 1
+        
+        # Track capitalization
+        if content.isupper():
+            profile["communication_style"]["all_caps"] += 1
+        elif content[0].isupper():
+            profile["communication_style"]["capitalized"] += 1
+        else:
+            profile["communication_style"]["lowercase"] += 1
+        
+        # Track punctuation
+        if "!" in content:
+            profile["communication_style"]["uses_exclamation"] += 1
+        if "?" in content:
+            profile["communication_style"]["uses_questions"] += 1
+        if "..." in content or ".." in content:
+            profile["communication_style"]["uses_ellipsis"] += 1
+        
+        # Track emoji usage (basic)
+        emoji_count = len(re.findall(r'[😀-🙏🌀-🗿🚀-🛿]', content))
+        if emoji_count > 0:
+            profile["communication_style"]["uses_emojis"] += 1
+
+    def _update_sentiment_trend(self, content: str, profile: Dict):
+        """Update user's overall sentiment trend."""
+        content_lower = content.lower()
+        sentiment_score = 0.0
+        
+        # Count sentiment indicators
+        for word in self.sentiment_keywords["positive"]:
+            if word in content_lower:
+                sentiment_score += 0.3
+        
+        for word in self.sentiment_keywords["negative"]:
+            if word in content_lower:
+                sentiment_score -= 0.3
+        
+        # Update trend (exponential moving average)
+        profile["sentiment_trend"] = 0.8 * profile["sentiment_trend"] + 0.2 * sentiment_score
+        
+        # Determine preferred response style based on trend
+        if profile["sentiment_trend"] > 0.3:
+            profile["preferred_response_style"] = "upbeat"
+        elif profile["sentiment_trend"] < -0.3:
+            profile["preferred_response_style"] = "supportive"
+        else:
+            profile["preferred_response_style"] = "balanced"
+
     def get_user_context(self, username: str) -> str:
         if username not in self.user_profiles:
             return ""
@@ -90,10 +162,20 @@ class LearningEngine:
         games = ", ".join(sorted(profile["favorite_games"])) or "none yet"
         tags = ", ".join(sorted(profile["tags"])) or "no special tags"
         recent = "; ".join(profile["recent_topics"][-5:]) or "no recent topics"
+        
+        # Add communication style insights
+        style_insights = []
+        if profile["communication_style"]:
+            top_styles = profile["communication_style"].most_common(3)
+            style_insights = [style for style, _ in top_styles]
+        
+        style_str = f" Communication style: {', '.join(style_insights)}." if style_insights else ""
+        sentiment_str = f" Overall sentiment: {profile['sentiment_trend']:+.2f} ({profile['preferred_response_style']})." if abs(profile['sentiment_trend']) > 0.1 else ""
+        
         return (
             f"User summary for {username}: favorite games: {games}. "
             f"Loyalty score: {profile['loyalty_score']}. Tags: {tags}. "
-            f"Recent topics: {recent}."
+            f"Recent topics: {recent}. Interactions: {profile['interaction_frequency']}{style_str}{sentiment_str}"
         )
 
     def get_global_context(self) -> str:

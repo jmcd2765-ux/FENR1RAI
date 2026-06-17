@@ -12,6 +12,7 @@ from config import Config
 from knowledge_manager import KnowledgeManager
 from learning import LearningEngine
 from Mood import MoodEngine
+from response_quality_enhancer import ResponseQualityEnhancer
 
 class FENR1RBot(commands.Bot):
     def __init__(self):
@@ -45,6 +46,10 @@ class FENR1RBot(commands.Bot):
             knowledge_manager=self.knowledge,
             learning_engine=self.learning,
             mood_engine=self.mood
+        )
+        self.quality_enhancer = ResponseQualityEnhancer(
+            mood_engine=self.mood,
+            speech_analyzer=self.personality.speech_analyzer
         )
         self.memory = MemoryBuffer(max_age=self.config.get("memory_age"))
         self.security = SecurityFilter()
@@ -105,13 +110,21 @@ class FENR1RBot(commands.Bot):
                 self.logger.warning(f"Response blocked by security filter from user {message.author.name}")
                 return
 
+            # Enhance response quality based on mood and speech patterns
+            enhanced_response = self.quality_enhancer.enhance_response(safe_response, message.author.name)
+            
+            # Validate enhanced response
+            if not self.quality_enhancer.validate_response(enhanced_response):
+                self.logger.warning(f"Enhanced response failed validation, using original safe response")
+                enhanced_response = safe_response
+
             # Send response to chat
-            await message.channel.send(safe_response)
-            self.logger.info(f"Responded to {message.author.name}: {safe_response[:80]}...")
+            await message.channel.send(enhanced_response)
+            self.logger.info(f"Responded to {message.author.name}: {enhanced_response[:80]}...")
 
             # Update memory
             self.memory.add_message("chat", f"User: {user_message}")
-            self.memory.add_message("chat", f"FENR1R: {safe_response}")
+            self.memory.add_message("chat", f"FENR1R: {enhanced_response}")
 
             self.last_response_time = current_time
         except Exception as e:
